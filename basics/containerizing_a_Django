@@ -1,0 +1,208 @@
+Step:0
+pre-requisites
+1.Ubuntu system
+2.Python 3 installed
+3.Docker installed
+
+check python version
+>> python --version
+
+install docker 
+sudo apt update 
+sudo apt install docker.io -y
+sudo systemctl start docker
+sudo systemctl enable docker
+
+add user to the docker group
+
+sudo usermod -aG docker username
+
+_______________________________________________________________________________________________________________________
+
+Step 1: Create a Django project
+1.
+Install Django
+=> pip 3 install django
+
+2.
+Create project folder and start the project
+
+=> django-admin startproject devops-django 
+   >> cd devops_django
+
+your structure should look like this:
+
+devops_django/
+|   manage.py
+|
+|_____devops_django/
+      |_ _init_.py
+      |_ settings.py
+      |_ urls.py
+      |_ wsgi.py
+
+test it locally 
+=>python3 manage.py runserver
+
+open https://127.0.0.1:8000->you should see the django welcome page 
+
+
+Step 2: Create a Django app
+
+=> python3 manage.py start demo
+
+this create a folder demo/
+
+inside the demo folder we have the file systemm like this
+
+demo/
+|__admin.py
+|__apps.py
+|__models.py
+|__tests.py
+|__views.py
+
+add it to INSTALLED_APPS IN settings.py
+
+INSTALLED_APPS=[
+  'demo',
+  ]
+
+Step 3:
+Create a requirements.txt
+
+pip install django gunicorn psycopg2-binary[ this install django gunicorn psycopg-binary] 
+pip freeze >  requirement.txt  [this will send the installed  the things into the requirement.txt]
+
+your requirement.txt files should look like this
+
+Django==4.2.11
+gunincorn
+psycopg2-binary
+
+step 3: create .dockerignore
+
+in project rool (devops_django/.dockerignore)
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+.env
+.git
+venv/
+
+
+==>this keeps the image clean
+
+Create Dockerfile
+
+dockerfile
+#base python image
+FROM python:3.10-slim
+-------------------------------------------------------------------------------------------
+[every docker image start from a base image .
+  here .we use python:3.10-slim -> a small linux image  with python3.100 preinstalled
+  this saves you from installing python manually]
+------------------------------------------------------------------------------------------
+ENV PYTHONDONTWIRTEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+-----------------------------------------------------------------------------------------
+The first enviroment stops python  from  creating .pyc files (useless in containers)
+The second enviroment make sure python logs go directly to the containers logs 
+---------------------------------------------------------------------------------------
+WORKDIR /app
+-----------------------------------------------------------------------------------------
+sets the working directory inside the containers to /app.
+all the following commands (COPY ,RUN ETC) will run in this  folder
+
+example: if you say  COPY . /app/ , files will go inside /app
+--------------------------------------------------------------------------------------
+#install dependencies
+COPY requirements.txt /app/
+RUN pip install  --no-cache-dir -r requirements.txt
+--------------------------------------------------------------------------------------
+
+1.first line copy your requirements.txt file into the containers
+2.then the second line installs all the python libraries listed inside it
+
+this ensure your django and gunicorm and db librariess are installed inside the containers
+--------------------------------------------------------------------------------------
+
+COPY ./app/
+---------------------------------------------------------------------------------------
+*copies all your's project files (Django,manage.py,setting,etc) into /app  inside tthe containers
+*Now the container hasa your full project
+--------------------------------------------------------------------------------------
+
+EXPOSE 8000
+
+----------------------------------------------------------------------------------------
+tells docker that your app will run on port 8000 inside the container
+when you run docker run -p 8000:8000 this port is mapped to your host machine
+
+so you can open https://localhost:8000 in the browser
+---------------------------------------------------------------------------------------
+
+CMD ["gunicorn","devops_django.wsgi:application","--bind","0.0.0.0:8000"]
+
+--------------------------------------------------------------------------------------
+*the default command that runs when the containers starts
+ 
+*here we run the gunicorn:
+devops_django.wsgi:applicatoin  =>entry point  for the django
+--bind 0.0.0.0:8000 ->listen on all network interfaces at port 8000
+
+
+gunicorn is better than python  manage.py runserver for production (faster, stable,secure)
+
+------------------------------------------------------------------------------------------
+
+step 4 create docker-compose.yml
+
+version: '3.9'
+
+services: 
+  web:
+    build: .
+    command: gunicorn devops_django.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+-----------------------------------------------------------------------------------------------------------------------
+web service
+This is your Django app container.
+
+build: . → build the Docker image from the Dockerfile in the current directory.
+command: gunicorn ... → override the default CMD in Dockerfile, telling container how to run Django.
+volumes: - .:/app → mount your project folder on host into container, so changes on your computer reflect instantly inside the container.
+ports: - "8000:8000" → map container port 8000 → host port 8000, so you can open http://localhost:8000.
+depends_on: - db → make sure the database container starts before Django.
+
+-----------------------------------------------------------------------------------------------------------------------
+
+  db:
+    image: postgres:14
+    enviroment:
+      POSTGRES_DB: django
+      POSTGRES_USER: django_user
+      POSTGRES_PASSWORD: secreat
+   volumes:
+     - postgres_data:/var/lib/postgresql/data/
+
+volumes:
+  postgres_data:
+
+step5: docker-compose build
+       docker-compose up -d 
+
+checking the running containers
+docker ps 
+
+http ://localhosat:8000
