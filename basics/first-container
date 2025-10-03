@@ -1,0 +1,34 @@
+1.first to work with container you should intall the docker
+
+to install the docker on ubuntu use the command
+>>sudo apt update
+>>sudo apt install  docker.io -y
+>>sudo systemctl start docker
+>>sudo systmectl enable docker
+---------------
+docker --version 
+----------------
+=>to enable a user to use the docker add the user to the docker group
+
+-----------------------------------------------------------------------------------------------------------------------
+2.Run your first container(Nginx web server)
+
+Nginx is a web server ,we can run it in a container without installing anything  else
+-------------------------------
+>>docker run -d -p 8080:80 nginx
+--------------------------------
+
+open the browser and go to 
+https://localhost:8080
+you should see the nginx  welcome page
+
+check for the running containers
+=>docker ps
+
+output show the containers running
+------------------------------------
+
+stop or remove the contianers 
+docker stop container id 
+docker rm container_id
+
