@@ -1,0 +1,44 @@
+A containres  is like  a  lightweight  box that has everything  your application  need to run
+
+*the app code
+*ssytem libraries(Python,Django,Nginx, etc)
+*dependencies(like database drivers)
+
+but unlike a virtual machine , a container does not  carry  full OS it shares the host machines OS  KERNEL
+
+-----------------------------------------------------------------------------------------------------------------------
+*Docker is the most popular container tool.
+*Docker uses  the linux kernel  feature (namespace and cgroup) to isolate the apps
+*YOu package your a;; in a docker image -> then run it as a container
+
+------------------------------------------------------------------------------------------------------------------------
+Container lifecycle
+------------------
+
+1.Build -> Create a Docker iamge 
+2.Run    -> Start a container form that image
+3.Stop  -> Pause or shut down the container
+4.Remove -> Delete it when not needed
+
+docker build -t myapp .
+docker run -d  -p 8000:8000 myapp
+docker ps 
+docker stop container_id
+docker rm containre_id
+
+----------------------------------------------------------------------------------------------------------------------
+CONTAINERS ON A SERVER OR EC2
+----------------------------
+
+*On your local laptop -> you install the docker then run containers
+*ON an ec2 instnace -> you install Docker in the vm ,then run the same containers
+*since contianers are protable the same image works on your laptop ,ec2 or kubernetes cluster
+
+-----------------------------------------------------------------------------------------------------------------------
+why containers are better than just running Django normally
+
+*your app runs the same every where
+*you can send the image instead of givving setup insturction
+*scalable -> Kubernetes can run 100's of containers form the same image
+-----------------------------------------------------------------------------------------------------------------------
+========================================================================================================================------------------------------------------------------------------------------------------------------------------------
