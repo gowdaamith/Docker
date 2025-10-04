@@ -1,0 +1,177 @@
+Docker Multi - Stage Builds 
+
+A mutli-stage build  is a docker feature that allows  you to use mutiple FROM  instruction  in a single Dockerfile.
+
+Each FROM  starts a new build stage
+
+The main idea:
+You build (compile/test) your application  in one stage ,
+then copy the necessary files (like the compiled binary ro app folder )into a  final ,smaller image.
+
+Traditional(Single stage )build problem
+--------------------------------------
+Imagine  you"re  building  a  Go , node.js  , Python app 
+
+In a single-stage dockerfiles
+
+FROM node:18
+WORKDIR /app
+COPY . .
+RUN npm install 
+CMD ["npm',"start"]
+
+Problem
+
+1.final iamge include all:
+*source code 
+*build tool (npm, compilers)
+*Dependencies not needed in production 
+
+2.image become very large 
+3.slower to build ,push an deploy
+
+-----------------------------------------------------------------------------------------------------------------------
+
+How multi-stage builds solve this
+-------------------------------------
+Nulti stage builds split the dockerfile into multiple  logical phases:
+1.Build stage : contains heavy tools and dependencies
+2.Final stage : lightweight base image with only the final app binary and output
+
+Example:
+#Stage 1: Build
+FROM node:18 AS builder
+WORKDIR /app
+COPY  . .
+
+RUN npm install
+RUN npm run install
+
+#stage 2: final runtime image
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+
+Explanation:
+stage1: uses Node.js  to compile  your react app (npm run build)
+stage2: uses only ngnx:alpine e(very small) to serve a static files
+ 
+only the final compiled output is copied - not the node.jd runtime or source files
+
+------------------------------------------------------------------------------------------------------------------------How it work internally
+-------------------------
+
+Here"s what docker does behind the  scenes:
+
+1.Docker build the first image (builder )normally
+2.when it reches the second FROM  ,it starts a new image layer
+
+the command:
+COPY --from=builder /app/build /usr/share/nginx/html
+
+tell docker  to copy only the specific files from the previous iamge (by stage name or index)
+4.The final image keeps only the layers from the last stage (and not the builder's layers)
+
+so the big build tools (like node ,gcc,maven )are thrown away  before shipping the image
+
+4.Real example -Go application 
+------------------------------------------------------
+
+FROM golang:1.33 AS builder
+WORKDIR /app
+COPY . . 
+RUN go build -o my app .
+
+#Stage 2:Runtime stage
+FROM alpine:3.20
+WORKDIR /app
+COPY --from=builder /app/myapp .
+CMD ["./myapp"]
+
+Breakdown 
+golang:1.22 image =~1GB (has compiler and tools)
+alpine:3.20 image=~5mb
+final image only includes the compiles binary app
+----------------------------------------------------------------------------------------------------------------------
+
+How multi stage  builds reduces spaces
+
+Aspexts                           single stage                     multistage
+
+Build tools                   included in final stage                removed
+source code                       included                           optinal
+Temporary files                   present                            Not copied
+Base image                         Heavy                               light
+Imagee size                        large                                small
+Security surface                  Large                                 small
+
+mechanism 
+*only the final stage layres are kept 
+*All previous build layers are discarded  after build completion 
+
+you can confirm this by checking the images
+
+=>docker images
+
+
+docker images
+------------------------------------------------------------------------------------------------------------------------Use cases
+
+compiled languages (Go,java ,c++)
+
+*builds in a heavy base ,then copy final binary
+
+Frontend frameworks (React ,Angular,Vue)
+*Builds node,js ->copy output to nginx
+
+Multi -language projext
+
+ex : java backed and node,js frontend combine in one image
+
+Security optimization
+
+*Eliminates unnecessary build tools ,secrets or intermediate files
+
+-----------------------------------------------------------------------------------------------------------------------
+
+Security benefits
+-----------------
+
+1.Smaller attack surfaces : fewer librarires ,tools ,and binaries
+2.No sec reat leak: Build -time secreats  or crednetialas  donot  remain in final image,
+3.Immutable final artifact: final stage contains only what is needed to run 
+
+------------------------------------------------------------------------------------------------------------------------
+Multi stage build commands
+---------------------------
+
+You can build only up ot certain stage 
+(for debugging)
+=>docker build  --target builder -t myapp-builder .
+
+docker history myapp              #to inspect intermediate images
+
+-----------------------------------------------------------------------------------------------------------------------
+Beest practices
+-------------
+
+Best Practices
+
+ Use descriptive stage names:
+
+FROM golang:1.22 AS builder
+FROM alpine:3.20 AS runtime
+
+
+ Keep COPY --from=builder paths minimal (only needed files).
+
+ Use alpine or distroless for the final image to minimize size.
+
+ Always .dockerignore large unnecessary files (node_modules, test data, etc.)
+
+ Pin versions for consistency:
+
+FROM node:18.17.1-alpine
+
+
+
+
