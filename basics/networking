@@ -1,0 +1,173 @@
+What is Docker Networking?
+=> Docker networking allows containsers to communicate with with 
+
+1)each other (container <-> container)
+2)The host machine (container <-> host)
+3) The outside world ( internet <-> container)
+
+By default .Docker provides several types to control how containers connect and communicate
+
+Type of Docker Network:
+
+1.Bridge Network 
+*Default for standalone  containers.
+*Docker creates a virtual bridge interface on the host {usally docker0}
+*Each containers gets its own virtual ethernet interface (like veth0 )that connects to docker0
+
+[Container 1] <--veth1--> [docker0 bridge] <--veth2--> [Container 2]
+                               |
+                            [NAT]
+                               |
+                            [Host eth0] ---> Internet
+
+*Each Container gets a private IP (EX :172.17.x.x) from  Docker
+*When a containers sends  packets  they go to the docker0 brige 
+*Docker uses iptables / NAT   to forward  packets  to the hosts  real netwowrk interface (eth0)
+*Outbound internet traffic is masqueraded (traslated) to the hosts's IP
+*Inbound traffic from the host can reach containers via port mapping (-p 8000:80)
+Example:
+docker run -d --name web -p 8080:80 nginx
+
+*external user ->hits  HOST_IP:8000
+*dOcker maps it ->t0 containers prot 80
+
+connection exits between :
+*containers in the same bridge  ( via  name or ip)
+*Host  and containers (via mapped ports)
+*Containers and internet (via NAT)
+------------------------------------------------------------------------------
+2.Host network
+-------------
+*the containers  shares the hosts network stack directly 
+*no virtual interfaces or NAT -uses hosts IP and port
+
+[Container process] --> [Host network stack] --> [eth0] --> Internet
+
+1.the container's network namespace =host namespace
+2.no translation or port mapping - containres binds directly  to hosts port
+ 
+Connnection exits between :
+*containers  <-> host(shared)
+*containers <-> internet (directly via hosts ip)
+*No internal isolation -act as if the app is running natively
+
+example:
+docker run -d  --network  host ngix
+
+Only one container can bind to a specific prot since its shared with the host
+
+-------------------------------------------------------------------------------
+
+3.None Network
+---------------
+*)No external  connectivity
+*)ONly a loopback interface (lo) inside the container 
+
+connnection flow:
+
+[containers]->[lo interfaces only]
+
+1. the containers is completely  isolated  from all network
+2.  noly the local process inside it can communicate via 127.0.0.1
+
+ conneciton exits between :
+*process inside the same containres only 
+
+example: 
+docker run -d --network  none nginx
+
+4.Overlay network (for multi host)
+* used in docker swarm or kubernetes
+*allows containers on different  hosts to communicate as if on one network
+*Achived through  VXLAN tunnelinggg  between hosts 
+
+connection flow:
+ [containers on hosts A]<-----virtual tunnel --------> [Ovelay network][--------vitual tunner------>[container on hostB]
+
+1.Docker creates  a virtual  network  spanning  multiple hosts 
+2. Data packets are encapsulated  (tunneled ) insisde UDP  packets
+3.These UDP  packets  are sent over  the physical  network  between the hosts
+
+connection exits betweeen :
+1.containers across multiple hosts  in the same swarm
+2.containers <-> host (through OVERLAY  driverss)
+3.containers <-> internet (through hosts physical NIC)
+
+EXAMPLE:
+docker  network crete  -d overlay my_overlay
+------------------------------------------------------------------------------------------------------------------------
+5.Macvlan Network
+-----------------
+*)Assigns  a real MAC  address to each container
+*)Containers appears as a separate devices  on the local network  (like a physical computers)
+
+Connection flow 
+----------------
+[containers etho]--> [host etho parent interface]-->[LAN/SWITCH /ROUTER]
+
+1.Docker create  a sub - interface on the  hosts NIC
+2.the containers  uses it as its own network  card  with unique  MAC and IP 
+3.it bypasses Docker's internal  NAT  and connets directly to LAN 
+ 
+Connnction exits between 
+*)containers <-> other LAN devices (direct)
+*)container <-> host (if configured properly)
+*)container <-> internet(direct route)
+
+docker network  create -d macvlan \
+  -- subnet=192.168.1.0/24
+  --gateway=192.168.1.1 \
+  --o parent=eth0 my_macvlan
+
+------------------------------------------------------------------------------------------------------------------------Docker DNS  and Name Resolution
+-------------------------------
+When containers  share a user-defined  bridge or overy network ,docker runs an internal DNS server
+
+*each containers  gets a hostname  (its container name).
+*you can ping or curl  anotehr container using its name
+
+commands for connection management
+docker network ls                     #list network 
+
+docker network inspect  mynetwork     #inspect network details (see ips ,gateway ,connexted containes)
+
+#connect to diconnect a running containers 
+
+docker network connect mynetwork app
+docker network disconnect mynetwork app
+
+------------------------------------------------------------------------------------------------------------------------
+
+
+type                                            analogy
+
+
+Bridge                              Like a home wifi router for containers on one host
+
+host                                plugged directly into hosts Etherent
+
+None                                Aripalne mode -no connectivity
+
+overlay                             VPN between multiple dockerr hosts
+
+macvlen                            each containers  has its own  LAN cable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
