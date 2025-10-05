@@ -1,0 +1,196 @@
+What is Docker compose 
+Docker compose is a tool that help you define  and manage multi - containner  Docker applications  using  a single 
+using  a single YAML file  called  docker-compose.yml
+
+Instead of manually running  multiple  docker run  commands for each containers you can define everything (sevices,network ,volumes,environment variabels ,etc ) in one place and run it all with
+----------------------
+=>docker-compose up
+------------------------------------------------------------------------------------------------------------------------
+Why you need docker compose?
+
+Imagine you have  a Django or Node.js  app that needs 
+* an application  container (your code)
+* a database  container ( PostgreSQL)
+* a cache container  ( Redis)
+
+without Compose ,you'd run:
+ docker run  -d --name mydb postgers
+ docker run  -d --name myredis redis
+ docker run  -d --name myapp -- link  mydb --link myredis  myappimage
+
+
+This is messy and hard to maintain 
+with docker compose -> all of this is written  declaratively  in one file
+
+Yaml
+------------------------------------------------------------------------
+version: "3"
+services: 
+  db: 
+   image: postgres
+  redis
+    image: redis
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+-----------------------------------------------------------------------
+
+Then just run
+=> doker-compose up
+
+This  will create all containers ,connects them ,sets up networking and runs them together
+-----------------------------------------------------------------------------------------------------------------------
+Key components of docker compose
+
+A typical docker-compose file looks like this
+
+yaml
+
+----------------------------------------------------------------------------------------------------------------------
+
+version: "3.9"
+
+services: 
+  web:
+    build: .
+    ports: 
+      - "8000:80"
+    environment:
+      - DEBUG=True
+    depends_on:
+      - db
+
+  db: 
+    image: postgres:16
+    environment: 
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
+    volumes: 
+      - db_data: /var/lib/psotgresql/data
+
+volume: 
+  db_data:
+
+-----------------------------------------------------------------------------------------------------------------------
+
+lets break it down
+-------------------
+version =>
+-----------
+Specifies the docker compose file format version  (latest "3.9")
+
+services =>
+-------------
+Each service = one containers (or a set of identical containers if scaled)
+
+
+example:
+web= your app containers
+db= database containers
+
+Each sevice can have :
+*image: which image to use
+*build: path of the docker file to build the image
+*ports: expose ports
+*Volumes : attach storage
+*environment: set environment variables
+*depends_on : define startup order
+
+------------------------------------------------------------------------------------------------------------------------volumes:
+--------
+used to store data persistently  or share  data between containers
+
+example: 
+
+volumes:
+  db_data
+
+this defines a named volume
+Docker compose automatically creates it when you run the docker-compose up
+
+networks(Optional)
+By default all servies share a single network created by compose
+
+you can define custom network if you want fine control 
+
+Example:
+network: 
+  frontend:
+  backend:
+
+
+then assing  them to the sevises
+
+services:
+  web:
+    network:
+      -frontend
+    db:
+     network:
+       -backend
+
+How compose create the connections ?
+
+Dockerr compose automatically :
+*creates  an isolated  network for your application 
+*Gives each sevices  a DNS  name equal to its services name
+
+So inside  the app containers:
+* You can reach the database by hostname db
+*Example connections  string
+
+postgres://user:password@db:5432/mydb
+
+No need for Ips everything is handled internally by dockers network
+---------------------------------------------------------------------------------------------------------------------
+
+command commands 
+commands                                                                 description
+
+docker-compose                                                start all services
+
+docker-compose up -d                                          start in detached mode
+
+docekr-compose down                                          stop and remove containers ,network  and volumes
+
+docer-compose build                                          build
+
+docker-compose ps                                            shows running containser
+
+docker-compose logs                                         show logs for all the servies
+
+docker-compose exec <sevices><cmd>                          execute a command inside the services
+
+docker-compose stop/start                                  start /stop servies without removing them
+
+------------------------------------------------------------------------------------------------------------------------How  it reduces the complexity
+
+without the compose : 
+You manually start and manage mutiple  containers
+YOu must create network and volmes  by hand 
+you must remember environment vairable and run orders
+
+with  compose:
+All configuration is declarative(in YAML)
+Just up and down controls the entier system 
+Makes local development and ci/cd mush easire
+can be used for staging /production setups (eg docker-compse -f docker-compose.prod.yml up)
+
+-----------------------------------------------------------------------------------------------------------------------
+File separation for enviroment
+-----------------------------
+You can have multiple files
+*docker-compose.yml ->base config
+*docker-compose.prod.yml -> overrides for production
+
+
+
+
+
+
+
